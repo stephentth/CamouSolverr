@@ -37,16 +37,59 @@ While CamouSolverr maintains API compatibility with FlareSolverr, there are some
 
 It is recommended to install using Docker because the project depends on browser binaries that are already included within the image.
 
+#### Using Pre-built Image
+
+Pull the latest image from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/stephentth/camousolverr:latest
+```
+
+Run with Docker:
+
 ```bash
 docker run -d \
   --name=camousolverr \
   -p 8191:8191 \
   -e LOG_LEVEL=info \
   --restart unless-stopped \
-  camousolverr:latest
+  --shm-size=2gb \
+  ghcr.io/stephentth/camousolverr:latest
 ```
 
 Or using docker-compose:
+
+```yaml
+version: '3.8'
+
+services:
+  camousolverr:
+    image: ghcr.io/stephentth/camousolverr:latest
+    container_name: camousolverr
+    ports:
+      - "8191:8191"
+    environment:
+      - LOG_LEVEL=info
+      - HEADLESS=true
+    restart: unless-stopped
+    shm_size: 2gb
+```
+
+Run with:
+
+```bash
+docker-compose up -d
+```
+
+#### Building from Source
+
+If you want to build the image yourself:
+
+```bash
+docker build -t camousolverr:latest .
+```
+
+Or use docker-compose with build:
 
 ```yaml
 version: '3.8'
@@ -62,12 +105,6 @@ services:
       - HEADLESS=true
     restart: unless-stopped
     shm_size: 2gb
-```
-
-Run with:
-
-```bash
-docker-compose up
 ```
 
 ### From source
