@@ -1,35 +1,50 @@
 # CamouSolverr
 
-CamouSolverr is a FlareSolverr-compatible web crawling service using [Camoufox](https://camoufox.com/).
+A [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)-compatible proxy server powered by [Camoufox](https://camoufox.com/). Using a real Firefox browser with automatic fingerprint randomization.
 
-## How it works
+<!-- toc -->
 
-CamouSolverr starts a proxy server and waits for user requests in an idle state using few resources.
-When a request arrives, it uses Camoufox (a Firefox-based browser) to create a web browser instance. It navigates to the URL with user parameters and returns the HTML content, cookies, and headers.
+- [Features](#features)
+- [Differences from FlareSolverr](#differences-from-flaresolverr)
+- [Installation](#installation)
+  * [Docker](#docker)
+  * [From source](#from-source)
+- [Usage](#usage)
+  * [Commands](#commands)
+    + [+ `sessions.create`](#-sessionscreate)
+    + [+ `sessions.list`](#-sessionslist)
+    + [+ `sessions.destroy`](#-sessionsdestroy)
+    + [+ `request.get`](#-requestget)
+    + [+ `request.post`](#-requestpost)
+- [Environment variables](#environment-variables)
+- [Development](#development)
+  * [Requirements](#requirements)
+  * [Setup](#setup)
+- [API Documentation](#api-documentation)
+- [Session Behavior](#session-behavior)
+- [Troubleshooting](#troubleshooting)
+- [Credits](#credits)
+- [License](#license)
+- [Disclaimer](#disclaimer)
 
-**NOTE**: Web browsers consume a lot of memory. If you are running CamouSolverr on a machine with limited RAM, do not make many requests at once.
+<!-- tocstop -->
 
-**Important**: By default, CamouSolverr uses a persistent "default" session. This means all requests share the same browser session unless you explicitly specify a different session ID or create temporary sessions. This improves performance and resource usage but means cookies and state are shared across requests.
+## Features
 
-## Key Features
-
-- **FlareSolverr API Compatible**: Drop-in replacement for FlareSolverr
-- **Camoufox Powered**: Uses Camoufox for browser automation
+- **[FlareSolverr](https://github.com/FlareSolverr/FlareSolverr) API Compatible**: Drop-in replacement with identical API
+- **Camoufox Powered**: Real Firefox browser with automatic fingerprint randomization
 - **Async/Await**: Fully asynchronous implementation for better performance
-- **Default Session**: All requests use a persistent "default" session by default
-- **Session Management**: Create multiple persistent browser sessions with TTL support
-- **Request UUID Logging**: Every request has a unique UUID for easy debugging
-- **Strict camelCase API**: JSON API uses strict camelCase (FlareSolverr compatible)
+- **Persistent Sessions**: Default session shared across requests for efficiency
+- **Session Management**: Create multiple isolated sessions with TTL support
+- **Request Tracing**: Unique UUID per request for easy debugging
 
 ## Differences from FlareSolverr
 
-While CamouSolverr maintains API compatibility with FlareSolverr, there are some key differences:
-
-1. **Browser Engine**: Uses Camoufox (Firefox-based) instead of undetected-chromedriver (Chrome-based)
-2. **Implementation**: Fully async Python implementation using FastAPI
-3. **Logging**: Enhanced logging with unique request UUIDs for easier debugging
-4. **Default Session**: Uses persistent "default" session for all requests by default
-5. **Strict camelCase**: JSON API strictly uses camelCase (no snake_case support)
+| Feature | CamouSolverr | FlareSolverr |
+|---------|--------------|--------------|
+| Browser Engine | Camoufox (Firefox-based) | undetected-chromedriver (Chrome-based) |
+| Implementation | Async Python + FastAPI | Sync Python + Flask |
+| Default Behavior | Persistent "default" session | Creates new session per request |
 
 ## Installation
 
@@ -37,7 +52,7 @@ While CamouSolverr maintains API compatibility with FlareSolverr, there are some
 
 It is recommended to install using Docker because the project depends on browser binaries that are already included within the image.
 
-#### Using Pre-built Image
+**Using Pre-built Image**
 
 Pull the latest image from GitHub Container Registry:
 
@@ -81,7 +96,7 @@ Run with:
 docker-compose up -d
 ```
 
-#### Building from Source
+**Building from Source**
 
 If you want to build the image yourself:
 
@@ -254,7 +269,7 @@ Example response:
 }
 ```
 
-### + `request.post`
+#### + `request.post`
 
 This is the same as `request.get` but it takes one more parameter:
 
