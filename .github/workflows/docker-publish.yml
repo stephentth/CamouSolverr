@@ -1,4 +1,4 @@
-name: Docker
+name: Docker Publish
 
 on:
   workflow_dispatch:
@@ -12,7 +12,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Generate tag
+        id: tag
+        run: |
+          TIMESTAMP=$(date -u +%s)
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          TAG="${TIMESTAMP}-${SHORT_SHA}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Generated tag: $TAG"
+
   test:
+    needs: prepare
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,7 +56,7 @@ jobs:
           target: test
 
   build:
-    needs: test
+    needs: [prepare, test]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,8 +76,8 @@ jobs:
         run: |
           SURFIX=$(echo ${{ matrix.platform }} | cut -d'/' -f2)
           echo "SURFIX=$SURFIX" >> $GITHUB_OUTPUT
-          # Generate a unique local tag for the image
-          echo "LOCAL_TAG=${{ github.sha }}-$SURFIX" >> $GITHUB_OUTPUT
+          # Use shared tag with platform suffix for intermediate images
+          echo "LOCAL_TAG=${{ needs.prepare.outputs.tag }}-$SURFIX" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -103,7 +121,7 @@ jobs:
             VERSION=${{ github.ref_name }}
 
   merge-and-push:
-    needs: build
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -130,49 +148,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Generate timestamp tag
-      - name: Generate timestamp
-        id: timestamp
-        run: echo "TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
-
-      # Extract Docker metadata for tagging
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          tags: |
-            type=raw,value=${{ steps.timestamp.outputs.TIMESTAMP }}
-            type=sha,prefix={{branch}}-
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
       # Create manifest lists and push
       - name: Create and push manifest lists
         run: |
-          TAGS="${{ steps.meta.outputs.tags }}"
-          args=""
-
           image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           image=${image,,}
 
-          # Create tag arguments
-          for tag in $TAGS; do
-              args="$args -t $tag"
-          done
+          TAG="${{ needs.prepare.outputs.tag }}"
 
-          # Add latest tag
-          args="$args -t ${image}:latest"
+          echo "Creating multi-arch manifest for tag: $TAG"
 
-          echo $args
+          # Create manifest with the timestamp-sha tag and latest
+          docker buildx imagetools create \
+            -t ${image}:${TAG} \
+            -t ${image}:latest \
+            ${image}:${TAG}-amd64 \
+            ${image}:${TAG}-arm64
 
-          docker buildx imagetools create $args \
-          ${image}:${{github.sha}}-amd64 \
-          ${image}:${{github.sha}}-arm64
-
-      # Sign the manifest
+      # Sign the manifests
       - name: Sign the manifests
-        env:
-          TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          for TAG in $TAGS; do
-            cosign sign --yes $TAG
-          done
+          image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          image=${image,,}
+          TAG="${{ needs.prepare.outputs.tag }}"
+
+          cosign sign --yes ${image}:${TAG}
+          cosign sign --yes ${image}:latest
