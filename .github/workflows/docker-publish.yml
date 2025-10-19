@@ -1,9 +1,6 @@
 name: Docker
 
 on:
-  push:
-    # Publish semver tags as releases.
-    tags: ["v*.*.*"]
   workflow_dispatch:
 
 env:
@@ -132,15 +129,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Generate timestamp tag
+      - name: Generate timestamp
+        id: timestamp
+        run: echo "TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+
       # Extract Docker metadata for tagging
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=raw,value=${{ steps.timestamp.outputs.TIMESTAMP }}
+            type=sha,prefix={{branch}}-
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
       # Create manifest lists and push
@@ -157,7 +158,7 @@ jobs:
               args="$args -t $tag"
           done
 
-          # Add latest tag for semver releases
+          # Add latest tag
           args="$args -t ${image}:latest"
 
           echo $args
