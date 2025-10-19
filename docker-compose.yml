@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  camousolverr:
+    build: .
+    container_name: camousolverr
+    ports:
+      - "8191:8191"  # API port
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - HEADLESS=true
+      - HOST=0.0.0.0
+      - PORT=8191
+      - TEST_URL=https://www.google.com
+      # Proxy settings (optional)
+      # - PROXY_URL=http://proxy.example.com:8080
+      # - PROXY_USERNAME=username
+      # - PROXY_PASSWORD=password
+      # Timezone and language
+      - TZ=UTC
+      # - LANG=en_US
+    restart: unless-stopped
+    shm_size: 2gb
+    security_opt:
+      - seccomp:unconfined
