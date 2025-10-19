@@ -97,6 +97,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           cache-from: type=gha,scope=${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+          target: production
           build-args: |
             GITHUB_BUILD=true
             VERSION=${{ github.ref_name }}
