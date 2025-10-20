@@ -44,8 +44,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Test
-        id: test
+      - name: Build Docker image for testing
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -53,7 +52,55 @@ jobs:
           cache-from: type=gha,scope=x64
           pull: true
           cache-to: type=gha,mode=max,scope=x64
-          target: test
+          load: true
+          tags: camousolverr:test
+
+      - name: Start Docker test environment
+        run: make start-docker-test
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for CamouSolverr to be ready..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8191/health > /dev/null 2>&1; then
+              echo "CamouSolverr is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+          # Verify service is up
+          curl -f http://localhost:8191/health || exit 1
+
+      - name: Install Python and dependencies
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install test dependencies
+        run: |
+          uv sync --frozen
+
+      - name: Run tests
+        run: make test
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          echo "=== CamouSolverr logs ==="
+          docker logs camousolverr-test
+          echo "=== httpbin logs ==="
+          docker logs httpbin-test
+
+      - name: Stop Docker test environment
+        if: always()
+        run: make stop-docker-test
 
   build:
     needs: [prepare, test]

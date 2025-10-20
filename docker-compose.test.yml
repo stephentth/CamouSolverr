@@ -1,0 +1,42 @@
+services:
+  camousolverr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: camousolverr-test
+    ports:
+      - "8191:8191"  # API port
+    environment:
+      - LOG_LEVEL=debug
+      - LOG_HTML=false
+      - HEADLESS=true
+      - HOST=0.0.0.0
+      - PORT=8191
+      - TEST_URL=http://httpbin:80
+      # Timezone and language
+      - TZ=UTC
+    # Mount source code for hot reload
+    volumes:
+      - ./src:/app/src:ro
+    # Override CMD to use uvicorn with reload
+    command: ["uv", "run", "uvicorn", "src.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8191", "--reload", "--log-level", "debug"]
+    restart: unless-stopped
+    shm_size: 2gb
+    security_opt:
+      - seccomp:unconfined
+    depends_on:
+      - httpbin
+    networks:
+      - test-network
+
+  httpbin:
+    image: kennethreitz/httpbin
+    container_name: httpbin-test
+    # ports:
+    #   - "8080:80"  # Expose httpbin on localhost:8080 for debugging
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge

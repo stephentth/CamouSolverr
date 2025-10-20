@@ -13,6 +13,7 @@ from playwright.async_api import Browser
 
 from src.browser import session_manager
 from src.config import config
+from src.middleware import RequestLoggingMiddleware
 from src.routes import router
 
 
@@ -42,6 +43,9 @@ async def lifespan(app: FastAPI):
         logger.error(f"Browser test failed: {e}")
         logger.warning("CamouSolverr may not function correctly")
 
+    # Start background cleanup task for expired sessions
+    session_manager.start_cleanup()
+
     yield
 
     # Shutdown event
@@ -60,6 +64,8 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
         lifespan=lifespan,
     )
+
+    app.add_middleware(RequestLoggingMiddleware)
 
     # Add CORS middleware
     app.add_middleware(

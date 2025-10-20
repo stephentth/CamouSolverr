@@ -121,7 +121,9 @@ async def cmd_sessions_create(req: V1RequestBase) -> V1ResponseBase:
     """Create a new browser session."""
     logger.debug("Creating new session...")
 
-    session, is_new = await session_manager.create_session(session_id=req.session, proxy=req.proxy)
+    # Extract TTL if provided
+    ttl = timedelta(minutes=req.session_ttl_minutes) if req.session_ttl_minutes else None
+    session, is_new = await session_manager.create_session(session_id=req.session, proxy=req.proxy, ttl=ttl)
 
     if not is_new:
         return V1ResponseBase(

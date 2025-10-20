@@ -33,14 +33,18 @@ class BrowserSession:
         context: BrowserContext,
         page: Page,
         solver: ClickSolver,
+        camoufox_instance: AsyncCamoufox,
         proxy: Optional[ProxyModel] = None,
+        ttl: Optional[timedelta] = None,
     ):
         self.session_id = session_id
         self.browser = browser
         self.context = context
         self.page = page
         self.solver = solver
+        self.camoufox_instance = camoufox_instance
         self.proxy = proxy
+        self.ttl = ttl
         self.created_at = datetime.now()
         self.last_used = datetime.now()
 
@@ -52,13 +56,20 @@ class BrowserSession:
         """Get the lifetime of the session."""
         return datetime.now() - self.created_at
 
+    def is_expired(self) -> bool:
+        """Check if the session has expired based on its TTL."""
+        if self.ttl is None:
+            return False
+        return self.lifetime() > self.ttl
+
     async def close(self) -> None:
         """Close the browser session."""
         try:
-            await self.solver.close()
+            # Close page and context first
             await self.page.close()
             await self.context.close()
-            await self.browser.close()
+            # Properly exit the Camoufox context manager
+            await self.camoufox_instance.__aexit__(None, None, None)
             logger.info(f"Session {self.session_id} closed successfully")
         except Exception as e:
             logger.error(f"Error closing session {self.session_id}: {e}")
@@ -70,9 +81,14 @@ class SessionManager:
     def __init__(self):
         self._sessions: Dict[str, BrowserSession] = {}
         self._lock = asyncio.Lock()
+        self._cleanup_task: Optional[asyncio.Task] = None
+        self._cleanup_interval = 10  # Check for expired sessions every 10 seconds
 
     async def create_session(
-        self, session_id: Optional[str] = None, proxy: Optional[ProxyModel] = None
+        self,
+        session_id: Optional[str] = None,
+        proxy: Optional[ProxyModel] = None,
+        ttl: Optional[timedelta] = None,
     ) -> Tuple[BrowserSession, bool]:
         """
         Create a new browser session.
@@ -147,7 +163,9 @@ class SessionManager:
                 context=context,
                 page=page,
                 solver=solver,
+                camoufox_instance=camoufox,
                 proxy=proxy,
+                ttl=ttl,
             )
 
             self._sessions[session_id] = session
@@ -171,19 +189,23 @@ class SessionManager:
             if session_id in self._sessions:
                 session = self._sessions[session_id]
 
-                # Check if session should be rotated based on TTL
-                if ttl and (datetime.now() - session.created_at) > ttl:
-                    logger.info(f"Session {session_id} expired (TTL: {ttl}), rotating...")
+                # Check if session has expired based on its stored TTL
+                if session.is_expired():
+                    logger.info(
+                        f"Session {session_id} expired (TTL: {session.ttl}), rotating..."
+                    )
                     await session.close()
                     del self._sessions[session_id]
-                    # Create new session with same ID
-                    return await self.create_session(session_id=session_id, proxy=session.proxy)
+                    # Create new session with same ID and TTL
+                    return await self.create_session(
+                        session_id=session_id, proxy=session.proxy, ttl=session.ttl
+                    )
 
                 session.update_last_used()
                 return session, False
 
-        # Session doesn't exist, create it
-        return await self.create_session(session_id=session_id)
+        # Session doesn't exist, create it with specified TTL
+        return await self.create_session(session_id=session_id, ttl=ttl)
 
     async def destroy_session(self, session_id: str) -> bool:
         """
@@ -205,8 +227,58 @@ class SessionManager:
         """List all active session IDs."""
         return list(self._sessions.keys())
 
+    async def _cleanup_expired_sessions(self) -> None:
+        """Remove expired sessions based on their TTL."""
+        async with self._lock:
+            expired_sessions = [
+                session_id
+                for session_id, session in self._sessions.items()
+                if session.is_expired()
+            ]
+
+            for session_id in expired_sessions:
+                session = self._sessions[session_id]
+                logger.info(
+                    f"Cleaning up expired session: {session_id} (TTL: {session.ttl})"
+                )
+                await session.close()
+                del self._sessions[session_id]
+
+            if expired_sessions:
+                logger.info(f"Cleaned up {len(expired_sessions)} expired session(s)")
+
+    async def _cleanup_loop(self) -> None:
+        """Background loop to periodically clean up expired sessions."""
+        while True:
+            try:
+                await asyncio.sleep(self._cleanup_interval)
+                # logger.info("Cleaning up expired sessions...")
+                await self._cleanup_expired_sessions()
+            except asyncio.CancelledError:
+                logger.info("Cleanup task cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Error in cleanup loop: {e}")
+
+    def start_cleanup(self) -> None:
+        """Start the background cleanup task."""
+        if self._cleanup_task is None or self._cleanup_task.done():
+            self._cleanup_task = asyncio.create_task(self._cleanup_loop())
+            logger.info("Started background session cleanup task")
+
+    async def stop_cleanup(self) -> None:
+        """Stop the background cleanup task."""
+        if self._cleanup_task and not self._cleanup_task.done():
+            self._cleanup_task.cancel()
+            try:
+                await self._cleanup_task
+            except asyncio.CancelledError:
+                pass
+            logger.info("Stopped background session cleanup task")
+
     async def close_all(self) -> None:
         """Close all sessions (cleanup)."""
+        await self.stop_cleanup()
         async with self._lock:
             for session in self._sessions.values():
                 await session.close()
@@ -253,6 +325,8 @@ async def resolve_challenge(
     # Navigate to page
     logger.debug(f"Navigating to {url} using {method}")
 
+    # Capture the response to get the actual HTTP status code
+    response = None
     if method == "POST" and post_data:
         # Create a form and submit it for POST requests
         html_form = f"""
@@ -273,9 +347,12 @@ async def resolve_challenge(
         </body>
         </html>
         """
-        await page.goto(f"data:text/html,{html_form}")
+        response = await page.goto(f"data:text/html,{html_form}")
     else:
-        await page.goto(url, timeout=int(timeout_seconds * 1000))
+        response = await page.goto(url, timeout=int(timeout_seconds * 1000))
+
+    # Extract status code from response (default to 200 if not available)
+    status_code = response.status if response else 200
 
     # Set cookies if provided
     if cookies:
@@ -295,11 +372,13 @@ async def resolve_challenge(
                 cookie_dict["sameSite"] = cookie.sameSite  # type: ignore
             cookie_dicts.append(cookie_dict)
         await page.context.add_cookies(cookie_dicts)  # type: ignore
-        # Reload with cookies
+        # Reload with cookies and capture new response status
         if method == "POST" and post_data:
-            await page.goto(f"data:text/html,{html_form}")
+            response = await page.goto(f"data:text/html,{html_form}")
         else:
-            await page.goto(url, timeout=int(timeout_seconds * 1000))
+            response = await page.goto(url, timeout=int(timeout_seconds * 1000))
+        # Update status code after reload
+        status_code = response.status if response else status_code
 
     # Wait for page load
     try:
@@ -368,7 +447,7 @@ async def resolve_challenge(
 
     return {
         "url": final_url,
-        "status": 200,  # Playwright doesn't easily provide status code after redirects
+        "status": status_code,  # HTTP status code from the response
         "cookies": cookie_models,
         "userAgent": user_agent,
         "response": page_content,

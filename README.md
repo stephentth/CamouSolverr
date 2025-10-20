@@ -20,9 +20,16 @@ A [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)-compatible proxy 
 - [Development](#development)
   * [Requirements](#requirements)
   * [Setup](#setup)
+  * [Running Tests](#running-tests)
+    + [Option 1: Quick Test (Local)](#option-1-quick-test-local)
+    + [Option 2: Full Test with Docker (Recommended)](#option-2-full-test-with-docker-recommended)
+    + [Test Categories](#test-categories)
 - [API Documentation](#api-documentation)
 - [Session Behavior](#session-behavior)
 - [Troubleshooting](#troubleshooting)
+  * [Browser doesn't start](#browser-doesnt-start)
+  * [Issues with requests](#issues-with-requests)
+  * [Memory issues](#memory-issues)
 - [Credits](#credits)
 - [License](#license)
 - [Disclaimer](#disclaimer)
@@ -320,7 +327,7 @@ Environment variables are set differently depending on the operating system:
 ### Setup
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/camousolverr.git
+git clone https://github.com/stephentth/CamouSolverr.git
 cd camousolverr
 
 # Install dependencies
@@ -329,12 +336,67 @@ uv sync --all-extras
 # Run linting and type checking
 make check
 
-# Run tests
-uv run pytest
-
 # Run the server locally
 uv run python -m src.main
 ```
+
+### Running Tests
+
+#### Option 1: Quick Test (Local)
+```bash
+# Install dependencies with dev extras
+uv sync
+
+# Run unit tests only (fast, no browser)
+uv run pytest tests/test_api.py -v
+
+# Run all tests
+uv run pytest
+```
+
+#### Option 2: Full Test with Docker (Recommended)
+```bash
+# Start the application in the background
+docker compose up --build -d
+
+# Run tests
+make test
+
+# Stop the application
+docker compose down
+```
+
+#### Test Categories
+
+Using Make commands:
+```bash
+make test              # Run all tests
+make test-unit         # Run unit tests only (fast)
+make test-sessions     # Run session & TTL tests
+make test-performance  # Run performance tests (concurrent sessions)
+make test-integration  # Run integration tests (real browser)
+make test-coverage     # Run tests with coverage report
+```
+
+Or using pytest directly:
+```bash
+# Run session management tests (including TTL tests)
+uv run pytest tests/test_sessions.py -v
+
+# Run performance tests (multiple concurrent sessions)
+uv run pytest tests/test_performance.py -v
+
+# Run integration tests (real browser requests)
+uv run pytest tests/test_integration.py -v -m integration
+
+# Skip slow tests
+uv run pytest -m "not slow"
+
+# Skip integration tests
+uv run pytest -m "not integration"
+```
+
+See [tests/README.md](tests/README.md) for comprehensive testing documentation.
 
 ## API Documentation
 

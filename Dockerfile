@@ -1,5 +1,4 @@
-# Base stage with dependencies
-FROM python:3.11-slim-bookworm AS base
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
@@ -33,42 +32,21 @@ RUN apt-get update && apt-get install -y \
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-COPY pyproject.toml uv.lock ./
-
-# Test stage - includes dev dependencies and runs tests
-FROM base AS test
-
-# Copy test files
-COPY src ./src
-COPY tests ./tests
-COPY README.md ./
-
-# Install with dev dependencies
-RUN uv sync --frozen
-
-# Install Playwright browsers for testing
-RUN uv run playwright install firefox
-RUN uv run playwright install-deps firefox
-
-# Run linting and type checking
-RUN uv run ruff check src/ || true
-RUN uv run mypy src/ || true
-
-# Run tests
-RUN uv run pytest || true
-
-# Production stage - optimized for runtime
-FROM base AS production
-
-COPY src ./src
-COPY README.md ./
+# Copy dependency files (changes less frequently)
+COPY pyproject.toml uv.lock README.md ./
 
 # Install production dependencies only
 RUN uv sync --frozen --no-dev
 
-# Install Playwright browsers (for Camoufox)
-RUN uv run playwright install firefox
+# Pre-download Camoufox browser during build (saves ~707MB download at runtime)
+# This is expensive, so we do it before copying src to maximize cache hits
+RUN uv run camoufox fetch
+
+# Install Playwright dependencies for browser support
 RUN uv run playwright install-deps firefox
+
+# Copy source code (changes frequently, so copied last)
+COPY src ./src
 
 EXPOSE 8191
 
