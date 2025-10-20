@@ -1,4 +1,4 @@
-.PHONY: check test fmt run-docker-test stop-docker-test
+.PHONY: check test fmt start-docker-test start-docker-test-manual stop-docker-test
 
 check:
 	uv run ruff check .
@@ -11,10 +11,10 @@ format:
 	uv run ruff format .
 
 start-docker-test-manual:
-	docker-compose -f docker-compose.test.yml up --build
+	docker compose -f docker-compose.test.yml up --build
 
 start-docker-test:
-	docker-compose -f docker-compose.test.yml up --build -d
+	docker compose -f docker-compose.test.yml up --build -d
 
 stop-docker-test:
-	docker-compose -f docker-compose.test.yml down -v
+	docker compose -f docker-compose.test.yml down -v
