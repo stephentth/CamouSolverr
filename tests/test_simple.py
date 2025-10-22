@@ -40,7 +40,7 @@ def test_default_session_sequential_requests():
         assert data["solution"]["status"] == 200
         # httpbin might add trailing slashes, so check if URLs match
         assert url in data["solution"]["url"] or data["solution"]["url"] in url
-        print(f"Request {i+1}/4 completed successfully in default session: {url}")
+        print(f"Request {i + 1}/4 completed successfully in default session: {url}")
 
 
 @pytest.mark.timeout(600)  # 10 minutes
@@ -87,7 +87,7 @@ def test_multiple_sessions_and_list():
         assert request_data["solution"]["status"] == 200
         # httpbin might add trailing slashes, so check if URLs match
         assert url in request_data["solution"]["url"] or request_data["solution"]["url"] in url
-        print(f"Request {i+1}/4 completed successfully in {session_id}: {url}")
+        print(f"Request {i + 1}/4 completed successfully in {session_id}: {url}")
 
     # Get list of sessions and verify all created sessions are present
     list_response = httpx.post(

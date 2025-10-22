@@ -191,9 +191,7 @@ class SessionManager:
 
                 # Check if session has expired based on its stored TTL
                 if session.is_expired():
-                    logger.info(
-                        f"Session {session_id} expired (TTL: {session.ttl}), rotating..."
-                    )
+                    logger.info(f"Session {session_id} expired (TTL: {session.ttl}), rotating...")
                     await session.close()
                     del self._sessions[session_id]
                     # Create new session with same ID and TTL
@@ -231,16 +229,12 @@ class SessionManager:
         """Remove expired sessions based on their TTL."""
         async with self._lock:
             expired_sessions = [
-                session_id
-                for session_id, session in self._sessions.items()
-                if session.is_expired()
+                session_id for session_id, session in self._sessions.items() if session.is_expired()
             ]
 
             for session_id in expired_sessions:
                 session = self._sessions[session_id]
-                logger.info(
-                    f"Cleaning up expired session: {session_id} (TTL: {session.ttl})"
-                )
+                logger.info(f"Cleaning up expired session: {session_id} (TTL: {session.ttl})")
                 await session.close()
                 del self._sessions[session_id]
 

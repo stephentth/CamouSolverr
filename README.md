@@ -2,6 +2,9 @@
 
 A [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)-compatible proxy server powered by [Camoufox](https://camoufox.com/). Using a real Firefox browser with automatic fingerprint randomization.
 
+
+**Table Of Contents**
+
 <!-- toc -->
 
 - [Features](#features)
@@ -21,9 +24,6 @@ A [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)-compatible proxy 
   * [Requirements](#requirements)
   * [Setup](#setup)
   * [Running Tests](#running-tests)
-    + [Option 1: Quick Test (Local)](#option-1-quick-test-local)
-    + [Option 2: Full Test with Docker (Recommended)](#option-2-full-test-with-docker-recommended)
-    + [Test Categories](#test-categories)
 - [API Documentation](#api-documentation)
 - [Session Behavior](#session-behavior)
 - [Troubleshooting](#troubleshooting)
@@ -342,19 +342,6 @@ uv run python -m src.main
 
 ### Running Tests
 
-#### Option 1: Quick Test (Local)
-```bash
-# Install dependencies with dev extras
-uv sync
-
-# Run unit tests only (fast, no browser)
-uv run pytest tests/test_api.py -v
-
-# Run all tests
-uv run pytest
-```
-
-#### Option 2: Full Test with Docker (Recommended)
 ```bash
 # Start the application in the background
 docker compose up --build -d
@@ -365,38 +352,6 @@ make test
 # Stop the application
 docker compose down
 ```
-
-#### Test Categories
-
-Using Make commands:
-```bash
-make test              # Run all tests
-make test-unit         # Run unit tests only (fast)
-make test-sessions     # Run session & TTL tests
-make test-performance  # Run performance tests (concurrent sessions)
-make test-integration  # Run integration tests (real browser)
-make test-coverage     # Run tests with coverage report
-```
-
-Or using pytest directly:
-```bash
-# Run session management tests (including TTL tests)
-uv run pytest tests/test_sessions.py -v
-
-# Run performance tests (multiple concurrent sessions)
-uv run pytest tests/test_performance.py -v
-
-# Run integration tests (real browser requests)
-uv run pytest tests/test_integration.py -v -m integration
-
-# Skip slow tests
-uv run pytest -m "not slow"
-
-# Skip integration tests
-uv run pytest -m "not integration"
-```
-
-See [tests/README.md](tests/README.md) for comprehensive testing documentation.
 
 ## API Documentation
 

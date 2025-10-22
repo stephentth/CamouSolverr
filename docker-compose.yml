@@ -3,7 +3,7 @@ services:
     build: .
     container_name: camousolverr
     ports:
-      - "8191:8191"  # API port
+      - "8191:8191" # API port
     environment:
       - LOG_LEVEL=info
       - LOG_HTML=false

@@ -32,8 +32,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         # Log response
         logger.info(
-            f"← {request.method} {request.url.path} "
-            f"[{response.status_code}] {duration:.3f}s"
+            f"← {request.method} {request.url.path} [{response.status_code}] {duration:.3f}s"
         )
 
         return response

@@ -10,6 +10,10 @@ test:
 format:
 	uv run ruff format .
 
+build-toc:
+	# https://github.com/jonschlinkert/markdown-toc
+	markdown-toc -i README.md
+
 start-docker-test-manual:
 	docker compose -f docker-compose.test.yml up --build
 

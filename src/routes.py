@@ -123,7 +123,9 @@ async def cmd_sessions_create(req: V1RequestBase) -> V1ResponseBase:
 
     # Extract TTL if provided
     ttl = timedelta(minutes=req.session_ttl_minutes) if req.session_ttl_minutes else None
-    session, is_new = await session_manager.create_session(session_id=req.session, proxy=req.proxy, ttl=ttl)
+    session, is_new = await session_manager.create_session(
+        session_id=req.session, proxy=req.proxy, ttl=ttl
+    )
 
     if not is_new:
         return V1ResponseBase(
